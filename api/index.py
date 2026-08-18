@@ -77,176 +77,464 @@ def extract_param(param_names, default=None):
 
 @app.route("/", methods=["GET"])
 def home():
-    """Interactive documentation and web interface"""
+    """Interactive device telemetry dashboard and documentation"""
     html_template = """
     <!DOCTYPE html>
     <html lang="en">
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Temp & Humidity IoT API</title>
-        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+        <title>IoT Telemetry Dashboard</title>
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
         <style>
             :root {
-                --bg: #090d16;
-                --card-bg: #121827;
-                --border: #1e293b;
-                --primary: #38bdf8;
-                --primary-glow: rgba(56, 189, 248, 0.15);
-                --accent: #f43f5e;
-                --text: #f8fafc;
-                --text-muted: #94a3b8;
-                --code-bg: #030712;
+                --bg: #09090b;
+                --surface: #121215;
+                --surface-hover: #1c1c21;
+                --border: #27272a;
+                --border-light: #3f3f46;
+                --text-primary: #f4f4f5;
+                --text-secondary: #a1a1aa;
+                --text-tertiary: #71717a;
+                --accent: #e4e4e7;
+                --status-green: #10b981;
+                --status-green-bg: rgba(16, 185, 129, 0.1);
             }
             * { box-sizing: border-box; margin: 0; padding: 0; }
             body {
-                font-family: 'Inter', sans-serif;
+                font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
                 background-color: var(--bg);
-                color: var(--text);
-                line-height: 1.6;
-                padding: 2rem 1rem;
+                color: var(--text-primary);
+                line-height: 1.5;
+                padding: 2.5rem 1.5rem;
+                min-height: 100vh;
             }
-            .container { max-width: 900px; margin: 0 auto; }
+            .container { max-width: 1080px; margin: 0 auto; }
+            
             header {
-                text-align: center;
-                margin-bottom: 3rem;
-                padding-bottom: 2rem;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-bottom: 2.5rem;
+                padding-bottom: 1.5rem;
                 border-bottom: 1px solid var(--border);
             }
-            h1 {
-                font-size: 2.5rem;
-                font-weight: 700;
-                background: linear-gradient(135deg, #38bdf8, #818cf8);
-                -webkit-background-clip: text;
-                -webkit-text-fill-color: transparent;
-                margin-bottom: 0.5rem;
-            }
-            .badge {
-                display: inline-block;
-                padding: 0.25rem 0.75rem;
-                background: var(--primary-glow);
-                color: var(--primary);
-                border: 1px solid var(--primary);
-                border-radius: 9999px;
-                font-size: 0.85rem;
+            .brand h1 {
+                font-size: 1.4rem;
                 font-weight: 600;
-            }
-            .card {
-                background: var(--card-bg);
-                border: 1px solid var(--border);
-                border-radius: 12px;
-                padding: 1.5rem;
-                margin-bottom: 2rem;
-                box-shadow: 0 10px 25px -5px rgba(0,0,0,0.3);
-            }
-            h2 { font-size: 1.4rem; color: var(--primary); margin-bottom: 1rem; }
-            .endpoint {
+                letter-spacing: -0.02em;
+                color: var(--text-primary);
                 display: flex;
                 align-items: center;
-                gap: 0.75rem;
+                gap: 0.6rem;
+            }
+            .brand p {
+                font-size: 0.875rem;
+                color: var(--text-secondary);
+                margin-top: 0.25rem;
+            }
+            .status-badge {
+                display: inline-flex;
+                align-items: center;
+                gap: 0.5rem;
+                padding: 0.35rem 0.75rem;
+                background: var(--status-green-bg);
+                border: 1px solid rgba(16, 185, 129, 0.2);
+                border-radius: 9999px;
+                font-size: 0.8rem;
+                font-weight: 500;
+                color: var(--status-green);
+            }
+            .status-dot {
+                width: 6px;
+                height: 6px;
+                background-color: var(--status-green);
+                border-radius: 50%;
+            }
+
+            .section-title {
+                font-size: 0.95rem;
+                font-weight: 600;
+                text-transform: uppercase;
+                letter-spacing: 0.05em;
+                color: var(--text-tertiary);
                 margin-bottom: 1rem;
-                font-family: monospace;
             }
-            .method {
-                padding: 0.25rem 0.5rem;
-                border-radius: 6px;
-                font-weight: bold;
-                font-size: 0.85rem;
+
+            /* Devices Grid */
+            .devices-grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+                gap: 1rem;
+                margin-bottom: 2.5rem;
             }
-            .method.post { background: #059669; color: white; }
-            .method.get { background: #0284c7; color: white; }
-            .method.delete { background: #e11d48; color: white; }
-            pre {
-                background: var(--code-bg);
-                padding: 1rem;
-                border-radius: 8px;
+            .device-card {
+                background: var(--surface);
                 border: 1px solid var(--border);
+                border-radius: 8px;
+                padding: 1.25rem;
+                cursor: pointer;
+                transition: all 0.15s ease;
+            }
+            .device-card:hover {
+                background: var(--surface-hover);
+                border-color: var(--border-light);
+            }
+            .device-card.active {
+                border-color: var(--text-primary);
+                background: var(--surface-hover);
+            }
+            .device-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-bottom: 1rem;
+            }
+            .device-id {
+                font-family: 'JetBrains Mono', monospace;
+                font-size: 0.95rem;
+                font-weight: 600;
+                color: var(--text-primary);
+            }
+            .device-metrics {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 0.75rem;
+            }
+            .metric-label {
+                font-size: 0.75rem;
+                color: var(--text-secondary);
+                text-transform: uppercase;
+                letter-spacing: 0.03em;
+            }
+            .metric-val {
+                font-size: 1.35rem;
+                font-weight: 600;
+                color: var(--text-primary);
+                font-family: 'JetBrains Mono', monospace;
+                margin-top: 0.1rem;
+            }
+            .metric-val span {
+                font-size: 0.85rem;
+                color: var(--text-tertiary);
+                font-weight: 400;
+            }
+            .device-updated {
+                font-size: 0.75rem;
+                color: var(--text-tertiary);
+                margin-top: 1rem;
+                padding-top: 0.75rem;
+                border-top: 1px solid rgba(255,255,255,0.05);
+            }
+
+            /* Main Layout */
+            .panel {
+                background: var(--surface);
+                border: 1px solid var(--border);
+                border-radius: 8px;
+                padding: 1.5rem;
+                margin-bottom: 2.5rem;
+            }
+            .panel-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-bottom: 1.25rem;
+                padding-bottom: 1rem;
+                border-bottom: 1px solid var(--border);
+            }
+            .panel-title {
+                font-size: 1.1rem;
+                font-weight: 600;
+                color: var(--text-primary);
+                display: flex;
+                align-items: center;
+                gap: 0.5rem;
+            }
+            .selected-device-pill {
+                font-family: 'JetBrains Mono', monospace;
+                font-size: 0.85rem;
+                padding: 0.2rem 0.6rem;
+                background: var(--bg);
+                border: 1px solid var(--border);
+                border-radius: 4px;
+                color: var(--text-secondary);
+            }
+
+            /* Table Styling */
+            .table-container {
                 overflow-x: auto;
-                font-size: 0.9rem;
-                color: #e2e8f0;
             }
             table {
                 width: 100%;
                 border-collapse: collapse;
-                margin-top: 1rem;
-            }
-            th, td {
-                padding: 0.75rem;
                 text-align: left;
-                border-bottom: 1px solid var(--border);
+                font-size: 0.9rem;
             }
-            th { color: var(--text-muted); font-size: 0.85rem; text-transform: uppercase; }
-            .live-pulse {
-                width: 8px;
-                height: 8px;
-                background-color: #22c55e;
-                border-radius: 50%;
-                display: inline-block;
-                box-shadow: 0 0 8px #22c55e;
-                margin-right: 6px;
+            th {
+                padding: 0.75rem 1rem;
+                font-size: 0.75rem;
+                text-transform: uppercase;
+                letter-spacing: 0.05em;
+                color: var(--text-tertiary);
+                border-bottom: 1px solid var(--border);
+                font-weight: 600;
+            }
+            td {
+                padding: 0.85rem 1rem;
+                border-bottom: 1px solid var(--border);
+                color: var(--text-secondary);
+            }
+            tr:last-child td { border-bottom: none; }
+            tr:hover td { color: var(--text-primary); background: rgba(255,255,255,0.01); }
+            .mono { font-family: 'JetBrains Mono', monospace; }
+
+            /* Test Data Ingestion Box */
+            .quick-test-grid {
+                display: grid;
+                grid-template-columns: 2fr 1fr 1fr auto;
+                gap: 0.75rem;
+                align-items: end;
+            }
+            .form-group label {
+                display: block;
+                font-size: 0.75rem;
+                color: var(--text-secondary);
+                margin-bottom: 0.4rem;
+                text-transform: uppercase;
+                letter-spacing: 0.03em;
+            }
+            .form-group input {
+                width: 100%;
+                background: var(--bg);
+                border: 1px solid var(--border);
+                border-radius: 6px;
+                padding: 0.6rem 0.8rem;
+                color: var(--text-primary);
+                font-family: 'JetBrains Mono', monospace;
+                font-size: 0.9rem;
+            }
+            .form-group input:focus {
+                outline: none;
+                border-color: var(--text-primary);
+            }
+            .btn {
+                background: var(--text-primary);
+                color: var(--bg);
+                border: none;
+                border-radius: 6px;
+                padding: 0.65rem 1.2rem;
+                font-size: 0.875rem;
+                font-weight: 600;
+                cursor: pointer;
+                transition: opacity 0.15s ease;
+                height: 38px;
+            }
+            .btn:hover { opacity: 0.9; }
+
+            /* Code Docs */
+            pre {
+                background: var(--bg);
+                padding: 1rem;
+                border-radius: 6px;
+                border: 1px solid var(--border);
+                font-family: 'JetBrains Mono', monospace;
+                font-size: 0.85rem;
+                color: var(--text-secondary);
+                overflow-x: auto;
+                margin-top: 0.75rem;
+            }
+
+            .empty-state {
+                text-align: center;
+                padding: 3rem 1rem;
+                color: var(--text-tertiary);
             }
         </style>
     </head>
     <body>
         <div class="container">
             <header>
-                <h1><span class="live-pulse"></span>Temp & Humidity API</h1>
-                <p style="color: var(--text-muted);">Flask REST Backend deployed on Vercel (CORS Enabled)</p>
-                <div style="margin-top: 1rem;">
-                    <span class="badge">Status: Active</span>
-                    <span class="badge" style="border-color: #818cf8; color: #818cf8; background: rgba(129, 140, 248, 0.15);">CORS: Allowed (*)</span>
+                <div class="brand">
+                    <h1><span class="status-dot"></span> IoT Telemetry Console</h1>
+                    <p>Python Flask Backend deployed on Vercel</p>
+                </div>
+                <div class="status-badge">
+                    <span class="status-dot"></span> System Online
                 </div>
             </header>
 
-            <div class="card">
-                <h2>📥 1. Store Temperature & Humidity Data</h2>
-                <div class="endpoint">
-                    <span class="method post">POST</span>
-                    <span>/api/data</span> (or /api/store)
+            <div class="section-title">Registered Devices</div>
+            <div class="devices-grid" id="devicesContainer">
+                <div class="empty-state" style="grid-column: 1/-1;">Loading device registry...</div>
+            </div>
+
+            <div class="panel">
+                <div class="panel-header">
+                    <div class="panel-title">
+                        Telemetry Readings
+                        <span class="selected-device-pill" id="selectedDevicePill">Select a Device</span>
+                    </div>
                 </div>
-                <p style="color: var(--text-muted); font-size: 0.95rem; margin-bottom: 1rem;">
-                    Send readings from your IoT device (ESP32, ESP8266, Raspberry Pi) or client application. Accepts JSON, Form Data, or Query Parameters.
-                </p>
-                <p style="font-weight: 600; margin-bottom: 0.5rem; font-size: 0.9rem;">JSON Request Body Example:</p>
-                <pre><code>{
-  "devid": "device_01",
-  "temp": 24.5,
-  "humidity": 60.2
-}</code></pre>
-                <p style="font-weight: 600; margin-top: 1rem; margin-bottom: 0.5rem; font-size: 0.9rem;">cURL Example:</p>
-                <pre><code>curl -X POST "{{ request.host_url }}api/data" \
+
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Device ID</th>
+                                <th>Temperature (°C)</th>
+                                <th>Humidity (%)</th>
+                                <th>Timestamp (UTC)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="readingsTableBody">
+                            <tr>
+                                <td colspan="5" class="empty-state">Select a device above to view telemetry log.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="panel">
+                <div class="panel-header">
+                    <div class="panel-title">Simulate Ingestion</div>
+                </div>
+                <form id="testIngestForm" class="quick-test-grid">
+                    <div class="form-group">
+                        <label>Device ID</label>
+                        <input type="text" id="inputDevId" value="esp32_room_01" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Temp (°C)</label>
+                        <input type="number" step="0.1" id="inputTemp" value="24.5" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Humidity (%)</label>
+                        <input type="number" step="0.1" id="inputHumidity" value="58.2" required>
+                    </div>
+                    <button type="submit" class="btn">Send Data</button>
+                </form>
+            </div>
+
+            <div class="panel">
+                <div class="panel-header">
+                    <div class="panel-title">API Quick Reference</div>
+                </div>
+                <p style="font-size: 0.875rem; color: var(--text-secondary); margin-bottom: 0.5rem;">Read Endpoint (GET):</p>
+                <pre>curl "{{ request.host_url }}api/data/esp32_room_01?latest=true"</pre>
+
+                <p style="font-size: 0.875rem; color: var(--text-secondary); margin-top: 1rem; margin-bottom: 0.5rem;">Store Endpoint (POST):</p>
+                <pre>curl -X POST "{{ request.host_url }}api/data" \
   -H "Content-Type: application/json" \
-  -d '{"devid": "device_01", "temp": 24.5, "humidity": 60.2}'</code></pre>
-            </div>
-
-            <div class="card">
-                <h2>📤 2. Read Data by Device ID</h2>
-                <div class="endpoint">
-                    <span class="method get">GET</span>
-                    <span>/api/data/&lt;devid&gt;</span> or <span>/api/data?devid=&lt;devid&gt;</span>
-                </div>
-                <p style="color: var(--text-muted); font-size: 0.95rem; margin-bottom: 1rem;">
-                    Fetch humidity and temperature readings for a specific <code>devid</code>. Supports optional query parameters: <code>limit=50</code> and <code>latest=true</code>.
-                </p>
-                <p style="font-weight: 600; margin-bottom: 0.5rem; font-size: 0.9rem;">cURL Examples:</p>
-                <pre><code># Fetch all readings for device_01
-curl "{{ request.host_url }}api/data/device_01"
-
-# Fetch latest reading only
-curl "{{ request.host_url }}api/data/device_01?latest=true"</code></pre>
-            </div>
-
-            <div class="card">
-                <h2>📊 3. List Registered Devices</h2>
-                <div class="endpoint">
-                    <span class="method get">GET</span>
-                    <span>/api/devices</span>
-                </div>
-                <p style="color: var(--text-muted); font-size: 0.95rem;">
-                    Returns a list of all active device IDs with their latest reading.
-                </p>
+  -d '{"devid": "esp32_room_01", "temp": 24.5, "humidity": 58.2}'</pre>
             </div>
         </div>
+
+        <script>
+            let currentSelectedDevice = null;
+
+            async function loadDevices() {
+                try {
+                    const res = await fetch('/api/devices');
+                    const data = await res.json();
+                    const container = document.getElementById('devicesContainer');
+                    
+                    if (!data.devices || data.devices.length === 0) {
+                        container.innerHTML = '<div class="empty-state" style="grid-column: 1/-1;">No active devices detected yet. Send data to create one.</div>';
+                        return;
+                    }
+
+                    container.innerHTML = data.devices.map(dev => `
+                        <div class="device-card ${currentSelectedDevice === dev.devid ? 'active' : ''}" onclick="selectDevice('${dev.devid}')">
+                            <div class="device-header">
+                                <div class="device-id">${dev.devid}</div>
+                            </div>
+                            <div class="device-metrics">
+                                <div>
+                                    <div class="metric-label">Temp</div>
+                                    <div class="metric-val">${dev.latest_temp.toFixed(1)}<span>°C</span></div>
+                                </div>
+                                <div>
+                                    <div class="metric-label">Humidity</div>
+                                    <div class="metric-val">${dev.latest_humidity.toFixed(1)}<span>%</span></div>
+                                </div>
+                            </div>
+                            <div class="device-updated">Last update: ${new Date(dev.last_updated).toLocaleString()}</div>
+                        </div>
+                    `).join('');
+
+                    if (!currentSelectedDevice && data.devices.length > 0) {
+                        selectDevice(data.devices[0].devid);
+                    }
+                } catch (err) {
+                    console.error('Failed to load devices:', err);
+                }
+            }
+
+            async function selectDevice(devid) {
+                currentSelectedDevice = devid;
+                document.getElementById('selectedDevicePill').innerText = devid;
+                
+                // Highlight active device card
+                document.querySelectorAll('.device-card').forEach(card => {
+                    if (card.querySelector('.device-id').innerText === devid) {
+                        card.classList.add('active');
+                    } else {
+                        card.classList.remove('active');
+                    }
+                });
+
+                try {
+                    const res = await fetch(`/api/data/${devid}`);
+                    const data = await res.json();
+                    const tbody = document.getElementById('readingsTableBody');
+
+                    if (!data.data || data.data.length === 0) {
+                        tbody.innerHTML = '<tr><td colspan="5" class="empty-state">No readings found for this device.</td></tr>';
+                        return;
+                    }
+
+                    tbody.innerHTML = data.data.map(row => `
+                        <tr>
+                            <td class="mono" style="color: var(--text-tertiary);">${row.id}</td>
+                            <td class="mono" style="color: var(--text-primary); font-weight: 500;">${row.devid}</td>
+                            <td class="mono" style="color: var(--text-primary);">${row.temp.toFixed(2)} °C</td>
+                            <td class="mono" style="color: var(--text-primary);">${row.humidity.toFixed(2)} %</td>
+                            <td class="mono" style="font-size: 0.8rem;">${new Date(row.timestamp).toLocaleString()}</td>
+                        </tr>
+                    `).join('');
+                } catch (err) {
+                    console.error('Failed to load telemetry:', err);
+                }
+            }
+
+            document.getElementById('testIngestForm').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const devid = document.getElementById('inputDevId').value;
+                const temp = parseFloat(document.getElementById('inputTemp').value);
+                const humidity = parseFloat(document.getElementById('inputHumidity').value);
+
+                try {
+                    const res = await fetch('/api/data', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ devid, temp, humidity })
+                    });
+                    if (res.ok) {
+                        await loadDevices();
+                        selectDevice(devid);
+                    }
+                } catch (err) {
+                    alert('Error sending data: ' + err.message);
+                }
+            });
+
+            // Initial load & poll every 5 seconds
+            loadDevices();
+            setInterval(loadDevices, 5000);
+        </script>
     </body>
     </html>
     """

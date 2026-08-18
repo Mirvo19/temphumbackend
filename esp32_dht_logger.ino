@@ -9,7 +9,7 @@ DHT dht(DHTPIN, DHTTYPE);
 
 const char* WIFI_SSID     = "YOUR_WIFI_SSID";
 const char* WIFI_PASSWORD = "YOUR_WIFI_PASSWORD";
-const char* SERVER_URL    = "https://your-app.vercel.app/api/data";
+const char* SERVER_URL    = "https://temphumbacke.vercel.app/api/data";
 const char* DEVICE_ID     = "esp32_room_01";
 
 const unsigned long SEND_INTERVAL_MS = 15000;
